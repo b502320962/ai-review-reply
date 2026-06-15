@@ -86,7 +86,7 @@ class OptionsPage {
     try {
       this.showStatus('api-status', 'loading', 'Testing connection...');
 
-      const response = await fetch('https://api.openai.com/v1/models', {
+      const response = await fetch('https://api.deepseek.com/v1/models', {
         headers: {
           'Authorization': `Bearer ${apiKey}`
         }

@@ -1,6 +1,6 @@
 // AI Review Reply - Background Service Worker
 
-const API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+const API_ENDPOINT = 'https://api.deepseek.com/v1/chat/completions';
 const DEFAULT_API_KEY = ''; // Users will set their own key
 
 // Tone configurations
@@ -70,7 +70,7 @@ Generate a reply that addresses the customer's feedback appropriately.`;
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'deepseek-chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
