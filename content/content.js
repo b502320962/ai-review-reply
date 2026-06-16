@@ -31,7 +31,7 @@ class ContentScript {
     // Add floating button and AI reply buttons based on platform
     if (this.platform === 'wechat') {
       this.initWeChatIntegration();
-    } else {
+    } else if (this.platform !== 'unknown') {
       this.addFloatingButton();
     }
   }
@@ -288,47 +288,78 @@ class ContentScript {
     btn.disabled = true;
 
     try {
-      // Get auth token from storage
-      const { authToken } = await chrome.storage.local.get('authToken');
+      // Get API key from storage
+      const { apiKey } = await chrome.storage.local.get('apiKey');
       
-      if (!authToken) {
-        alert('请先登录插件');
+      if (!apiKey) {
+        alert('请先在插件设置中配置 DeepSeek API Key');
+        // Open options page
+        chrome.runtime.openOptionsPage();
         return;
       }
 
-      // Call backend API to generate reply
-      const response = await fetch('http://localhost:3000/api/ai/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({
-          review: messageText,
-          tone: 'professional',
-          platform: 'wechat'
-        })
-      });
+      // Call DeepSeek API directly
+      const reply = await this.callDeepSeekAPI(apiKey, messageText);
 
-      const data = await response.json();
-
-      if (data.success) {
-        // Show reply in a modal/dialog
-        this.showWeChatReplyDialog(messageItem, messageText, data.data.reply, data.data.creditsRemaining);
-      } else {
-        alert(data.message || '生成回复失败');
-      }
+      // Show reply in a modal/dialog
+      this.showWeChatReplyDialog(messageItem, messageText, reply);
     } catch (error) {
       console.error('AI reply error:', error);
-      alert('生成回复失败，请稍后重试');
+      alert('生成回复失败: ' + error.message);
     } finally {
       btn.innerHTML = originalText;
       btn.disabled = false;
     }
   }
 
+  // Call DeepSeek API
+  async callDeepSeekAPI(apiKey, review) {
+    const prompt = `你是一个专业的商家回复助手。请根据以下顾客评论/消息，生成一段专业、友好、有帮助的商家回复。
+
+回复要求：
+1. 感谢顾客的反馈
+2. 针对评论中的具体问题进行回应
+3. 如果是负面评论，表达歉意并说明改进措施
+4. 如果是正面评论，表达感谢并邀请再次光临
+5. 保持专业和友好的语气
+6. 回复长度适中（100-200字）
+
+顾客评论/消息：
+${review}
+
+请直接给出回复内容，不需要其他说明。`;
+
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: '你是专业的商家回复助手，帮助商家回复顾客评论。' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        throw new Error('API Key 无效，请在设置中检查');
+      }
+      throw new Error(error.error?.message || 'AI 服务请求失败');
+    }
+    
+    const data = await response.json();
+    return data.choices[0].message.content.trim();
+  }
+
   // Show reply dialog for WeChat
-  showWeChatReplyDialog(messageItem, originalMessage, reply, creditsRemaining) {
+  showWeChatReplyDialog(messageItem, originalMessage, reply) {
     // Remove existing dialog
     const existingDialog = document.getElementById('ai-reply-dialog');
     if (existingDialog) existingDialog.remove();
@@ -356,10 +387,7 @@ class ContentScript {
           </div>
           
           <div class="ai-reply-card ai-reply-generated">
-            <div class="ai-reply-card-label">
-              AI生成回复
-              <span class="ai-reply-credits">剩余 ${creditsRemaining} 次</span>
-            </div>
+            <div class="ai-reply-card-label">AI生成回复</div>
             <div class="ai-reply-card-content" id="ai-reply-text">${reply}</div>
           </div>
         </div>
