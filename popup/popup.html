@@ -47,6 +47,23 @@
       padding: 4px;
     }
     
+    .mode-info {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .mode-info.success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    
+    .mode-info.warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
     .platform-info {
       background: white;
       border-radius: 8px;
@@ -149,12 +166,6 @@
       overflow-y: auto;
     }
     
-    .result-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-    }
-    
     .btn-secondary {
       background: #f3f4f6;
       color: #374151;
@@ -191,6 +202,8 @@
         </svg>
       </button>
     </div>
+
+    <div id="modeInfo" class="mode-info"></div>
 
     <div class="platform-info">
       <div class="platform-label">当前平台</div>

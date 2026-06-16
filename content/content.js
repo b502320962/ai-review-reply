@@ -1,6 +1,8 @@
 // AI Review Reply - Content Script
 // Supports Google Business, Yelp, and WeChat Official Account
 
+const API_BASE = 'http://localhost:3000/api';
+
 class ContentScript {
   constructor() {
     this.platform = this.detectPlatform();
@@ -288,18 +290,22 @@ class ContentScript {
     btn.disabled = true;
 
     try {
-      // Get API key from storage
-      const { apiKey } = await chrome.storage.local.get('apiKey');
+      // Get settings from storage
+      const { apiKey, mode, authToken } = await chrome.storage.local.get(['apiKey', 'mode', 'authToken']);
       
-      if (!apiKey) {
-        alert('请先在插件设置中配置 DeepSeek API Key');
-        // Open options page
+      let reply;
+      
+      if (mode === 'login' && authToken) {
+        // Use backend API
+        reply = await this.generateReplyViaBackend(authToken, messageText);
+      } else if (apiKey) {
+        // Use DeepSeek API directly
+        reply = await this.callDeepSeekAPI(apiKey, messageText);
+      } else {
+        alert('请先在插件设置中配置 API Key 或登录');
         chrome.runtime.openOptionsPage();
         return;
       }
-
-      // Call DeepSeek API directly
-      const reply = await this.callDeepSeekAPI(apiKey, messageText);
 
       // Show reply in a modal/dialog
       this.showWeChatReplyDialog(messageItem, messageText, reply);
@@ -312,7 +318,37 @@ class ContentScript {
     }
   }
 
-  // Call DeepSeek API
+  // Generate reply via backend
+  async generateReplyViaBackend(token, review) {
+    const response = await fetch(`${API_BASE}/ai/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        review: review,
+        tone: 'professional',
+        platform: 'wechat'
+      })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        throw new Error('登录已过期，请重新登录');
+      }
+      if (response.status === 429) {
+        throw new Error('免费额度已用完，请升级或使用 API Key 模式');
+      }
+      throw new Error(error.message || '生成回复失败');
+    }
+    
+    const data = await response.json();
+    return data.data.reply;
+  }
+
+  // Call DeepSeek API directly
   async callDeepSeekAPI(apiKey, review) {
     const prompt = `你是一个专业的商家回复助手。请根据以下顾客评论/消息，生成一段专业、友好、有帮助的商家回复。
 

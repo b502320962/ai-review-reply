@@ -1,5 +1,7 @@
 // AI Review Reply - Background Service Worker
 
+const API_BASE = 'http://localhost:3000/api';
+
 // Listen for messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'generateReply') {
@@ -14,18 +16,55 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Generate reply using DeepSeek API
+// Generate reply
 async function handleGenerateReply(request) {
   const { review } = request;
   
-  // Get API key from storage
-  const result = await chrome.storage.local.get(['apiKey']);
-  const apiKey = result.apiKey;
+  // Get settings from storage
+  const result = await chrome.storage.local.get(['apiKey', 'mode', 'authToken']);
+  const { apiKey, mode, authToken } = result;
   
-  if (!apiKey) {
-    throw new Error('请先在设置中配置 API Key');
+  if (mode === 'login' && authToken) {
+    return await generateReplyViaBackend(authToken, review);
+  } else if (apiKey) {
+    return await callDeepSeekAPI(apiKey, review);
+  } else {
+    throw new Error('请先在设置中配置 API Key 或登录');
+  }
+}
+
+// Generate reply via backend
+async function generateReplyViaBackend(token, review) {
+  const response = await fetch(`${API_BASE}/ai/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      review: review,
+      tone: 'professional',
+      platform: 'google'
+    })
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      throw new Error('登录已过期，请重新登录');
+    }
+    if (response.status === 429) {
+      throw new Error('免费额度已用完，请升级或使用 API Key 模式');
+    }
+    throw new Error(error.message || '生成回复失败');
   }
   
+  const data = await response.json();
+  return { reply: data.data.reply };
+}
+
+// Call DeepSeek API directly
+async function callDeepSeekAPI(apiKey, review) {
   const prompt = `你是一个专业的商家回复助手。请根据以下顾客评论，生成一段专业、友好、有帮助的商家回复。
 
 回复要求：
@@ -67,5 +106,5 @@ ${review}
   }
   
   const data = await response.json();
-  return data.choices[0].message.content.trim();
+  return { reply: data.choices[0].message.content.trim() };
 }
