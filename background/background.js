@@ -1,7 +1,5 @@
 // AI Review Reply - Background Service Worker
 
-const API_BASE = 'http://localhost:3000/api';
-
 // Listen for messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'generateReply') {
@@ -14,144 +12,60 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'openPopup') {
     chrome.action.openPopup();
   }
-
-  if (request.action === 'googleLogin') {
-    handleGoogleLogin()
-      .then(sendResponse)
-      .catch(error => sendResponse({ error: error.message }));
-    return true;
-  }
-
-  if (request.action === 'logout') {
-    handleLogout().then(sendResponse);
-    return true;
-  }
-
-  if (request.action === 'getUserInfo') {
-    handleGetUserInfo()
-      .then(sendResponse)
-      .catch(error => sendResponse({ error: error.message }));
-    return true;
-  }
 });
 
-// Google OAuth login
-async function handleGoogleLogin() {
-  try {
-    // Get Google OAuth token
-    const token = await chrome.identity.getAuthToken({ interactive: true });
-    
-    if (!token) {
-      throw new Error('Failed to get Google token');
-    }
-
-    // Send to our backend
-    const response = await fetch(`${API_BASE}/auth/google`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credential: token })
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Login failed');
-    }
-
-    const data = await response.json();
-    
-    // Save to storage
-    await chrome.storage.local.set({
-      authToken: data.data.token,
-      user: data.data.user
-    });
-
-    return { success: true, user: data.data.user };
-  } catch (error) {
-    console.error('Login error:', error);
-    throw error;
-  }
-}
-
-// Logout
-async function handleLogout() {
-  await chrome.storage.local.remove(['authToken', 'user']);
-  return { success: true };
-}
-
-// Get user info from storage
-async function handleGetUserInfo() {
-  const { authToken, user } = await chrome.storage.local.get(['authToken', 'user']);
+// Generate reply using DeepSeek API
+async function handleGenerateReply(request) {
+  const { review } = request;
   
-  if (!authToken || !user) {
-    return { success: false, message: 'Not logged in' };
-  }
-
-  // Verify token is still valid
-  try {
-    const response = await fetch(`${API_BASE}/auth/me`, {
-      headers: { 'Authorization': `Bearer ${authToken}` }
-    });
-
-    if (!response.ok) {
-      // Token expired, clear storage
-      await chrome.storage.local.remove(['authToken', 'user']);
-      return { success: false, message: 'Session expired' };
-    }
-
-    const data = await response.json();
-    return { success: true, user: data.data };
-  } catch (error) {
-    return { success: true, user }; // Return cached user if offline
-  }
-}
-
-// Generate AI reply
-async function handleGenerateReply({ review, tone, platform }) {
-  const { authToken } = await chrome.storage.local.get('authToken');
+  // Get API key from storage
+  const result = await chrome.storage.local.get(['apiKey']);
+  const apiKey = result.apiKey;
   
-  if (!authToken) {
-    throw new Error('Please login first');
+  if (!apiKey) {
+    throw new Error('请先在设置中配置 API Key');
   }
+  
+  const prompt = `你是一个专业的商家回复助手。请根据以下顾客评论，生成一段专业、友好、有帮助的商家回复。
 
-  const response = await fetch(`${API_BASE}/ai/generate`, {
+回复要求：
+1. 感谢顾客的反馈
+2. 针对评论中的具体问题进行回应
+3. 如果是负面评论，表达歉意并说明改进措施
+4. 如果是正面评论，表达感谢并邀请再次光临
+5. 保持专业和友好的语气
+6. 回复长度适中（100-200字）
+
+顾客评论：
+${review}
+
+请直接给出回复内容，不需要其他说明。`;
+
+  const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authToken}`
+      'Authorization': `Bearer ${apiKey}`
     },
-    body: JSON.stringify({ review, tone, platform })
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: '你是专业的商家回复助手，帮助商家回复顾客评论。' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 500
+    })
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    
-    if (error.code === 'NO_CREDITS') {
-      throw new Error('No credits remaining. Please upgrade to Pro.');
-    }
-    
-    throw new Error(error.message || 'Failed to generate reply');
-  }
-
-  const data = await response.json();
   
-  // Update cached credits
-  const { user } = await chrome.storage.local.get('user');
-  if (user) {
-    user.creditsRemaining = data.data.creditsRemaining;
-    await chrome.storage.local.set({ user });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      throw new Error('API Key 无效，请在设置中检查');
+    }
+    throw new Error(error.error?.message || 'AI 服务请求失败');
   }
-
-  return { 
-    success: true, 
-    reply: data.data.reply,
-    creditsRemaining: data.data.creditsRemaining
-  };
+  
+  const data = await response.json();
+  return data.choices[0].message.content.trim();
 }
-
-// Install handler
-chrome.runtime.onInstalled.addListener((details) => {
-  if (details.reason === 'install') {
-    // Open popup on install
-    chrome.action.openPopup();
-  }
-});
