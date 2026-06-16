@@ -1,25 +1,9 @@
-# Dependencies
 node_modules/
-npm-debug.log*
-
-# Environment
 .env
-.env.local
-.env.*.local
-
-# Database
-*.db
 data/
-
-# Build
-dist/
-build/
-*.zip
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
+*.db
+*.db-wal
+*.db-shm
+backend/node_modules/
+backend/data/
+backend/.env

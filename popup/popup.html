@@ -5,231 +5,66 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Review Reply</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      width: 360px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f5f5f5;
-    }
-    
-    .container {
-      padding: 16px;
-    }
-    
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .logo h1 {
-      font-size: 16px;
-      color: #333;
-    }
-    
-    .settings-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: #666;
-      padding: 4px;
-    }
-    
-    .mode-info {
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      margin-bottom: 12px;
-    }
-    
-    .mode-info.success {
-      background: #d1fae5;
-      color: #065f46;
-    }
-    
-    .mode-info.warning {
-      background: #fef3c7;
-      color: #92400e;
-    }
-    
-    .platform-info {
-      background: white;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
-    .platform-label {
-      font-size: 12px;
-      color: #888;
-      margin-bottom: 4px;
-    }
-    
-    .platform-name {
-      font-size: 14px;
-      color: #333;
-      font-weight: 500;
-    }
-    
-    .status {
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 13px;
-      margin-bottom: 12px;
-    }
-    
-    .status.success {
-      background: #d1fae5;
-      color: #065f46;
-    }
-    
-    .status.warning {
-      background: #fef3c7;
-      color: #92400e;
-    }
-    
-    .status.error {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-    
-    .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      border: none;
-      transition: all 0.2s;
-    }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-      color: white;
-    }
-    
-    .btn-primary:hover {
-      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
-    }
-    
-    .btn-primary:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-    
-    .result {
-      display: none;
-      background: white;
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
-    .result-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-    }
-    
-    .result-label {
-      font-size: 12px;
-      color: #888;
-    }
-    
-    .reply-content {
-      font-size: 13px;
-      color: #333;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    
-    .btn-secondary {
-      background: #f3f4f6;
-      color: #374151;
-      flex: 1;
-      padding: 8px;
-      font-size: 12px;
-    }
-    
-    .btn-secondary:hover {
-      background: #e5e7eb;
-    }
-    
-    .hint {
-      font-size: 11px;
-      color: #888;
-      text-align: center;
-      margin-top: 12px;
-    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{width:360px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5}
+    .container{padding:16px}
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .logo{display:flex;align-items:center;gap:8px}
+    .logo h1{font-size:16px;color:#333}
+    .settings-btn{background:none;border:none;cursor:pointer;color:#666;padding:4px}
+    .mode-info{padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
+    .mode-info.success{background:#d1fae5;color:#065f46}
+    .mode-info.warning{background:#fef3c7;color:#92400e}
+    .platform-info{background:white;border-radius:8px;padding:12px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+    .platform-label{font-size:12px;color:#888;margin-bottom:4px}
+    .platform-name{font-size:14px;color:#333;font-weight:500}
+    .status{padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:12px}
+    .status.success{background:#d1fae5;color:#065f46}
+    .status.warning{background:#fef3c7;color:#92400e}
+    .status.error{background:#fee2e2;color:#991b1b}
+    .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all .2s}
+    .btn-primary{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff}
+    .btn-primary:hover{background:linear-gradient(135deg,#4f46e5,#4338ca)}
+    .btn-primary:disabled{background:#ccc;cursor:not-allowed}
+    .result{display:none;background:white;border-radius:8px;padding:12px;margin-top:12px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+    .result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .result-label{font-size:12px;color:#888}
+    .reply-content{font-size:13px;color:#333;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto}
+    .btn-secondary{background:#f3f4f6;color:#374151;padding:8px;font-size:12px;border:none;border-radius:6px;cursor:pointer}
+    .btn-secondary:hover{background:#e5e7eb}
+    .hint{font-size:11px;color:#888;text-align:center;margin-top:12px}
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <div class="logo">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <h1>AI Review Reply</h1>
       </div>
       <button id="settingsBtn" class="settings-btn" title="设置">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2"/>
-        </svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2"/></svg>
       </button>
     </div>
-
     <div id="modeInfo" class="mode-info"></div>
-
     <div class="platform-info">
       <div class="platform-label">当前平台</div>
       <div id="platform" class="platform-name">检测中...</div>
     </div>
-
     <div id="status" class="status"></div>
-
     <button id="generateBtn" class="btn btn-primary" disabled>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       生成智能回复
     </button>
-
     <div id="result" class="result">
       <div class="result-header">
         <span class="result-label">AI 生成的回复</span>
-        <button id="copyBtn" class="btn btn-secondary" style="width: auto; padding: 4px 12px;">复制回复</button>
+        <button id="copyBtn" class="btn-secondary">复制回复</button>
       </div>
       <div id="replyText" class="reply-content"></div>
     </div>
-
     <div class="hint">在 Google Business / Yelp / 微信公众号页面使用</div>
   </div>
-
   <script src="popup.js"></script>
 </body>
 </html>

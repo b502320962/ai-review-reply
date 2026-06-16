@@ -1,6 +1,6 @@
 // AI Review Reply - Background Service Worker
 
-const API_BASE = 'http://localhost:3000/api';
+importScripts('../lib/supabase-client.js');
 
 // Listen for messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -10,61 +10,86 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch(error => sendResponse({ error: error.message }));
     return true;
   }
-  
+
   if (request.action === 'openPopup') {
     chrome.action.openPopup();
   }
+
+  if (request.action === 'googleLogin') {
+    handleGoogleLogin()
+      .then(sendResponse)
+      .catch(error => sendResponse({ error: error.message }));
+    return true;
+  }
+
+  if (request.action === 'logout') {
+    handleLogout()
+      .then(sendResponse)
+      .catch(error => sendResponse({ error: error.message }));
+    return true;
+  }
+
+  if (request.action === 'getUserInfo') {
+    handleGetUserInfo()
+      .then(sendResponse)
+      .catch(error => sendResponse({ error: error.message }));
+    return true;
+  }
 });
 
-// Generate reply
+// Google 登录
+async function handleGoogleLogin() {
+  const user = await supabase.signInWithGoogle();
+  return { success: true, user };
+}
+
+// 登出
+async function handleLogout() {
+  await supabase.signOut();
+  return { success: true };
+}
+
+// 获取用户信息
+async function handleGetUserInfo() {
+  const session = await supabase.restoreSession();
+  if (!session) return { success: false, user: null };
+
+  const { user } = await chrome.storage.local.get(['user']);
+  const profile = await supabase.getUserProfile();
+
+  return {
+    success: true,
+    user: {
+      ...user,
+      plan: profile?.plan || 'free',
+      creditsTotal: profile?.credits_total || 30,
+      creditsUsed: profile?.credits_used || 0,
+      creditsRemaining: (profile?.credits_total || 30) - (profile?.credits_used || 0),
+    },
+  };
+}
+
+// 生成回复
 async function handleGenerateReply(request) {
   const { review } = request;
-  
-  // Get settings from storage
-  const result = await chrome.storage.local.get(['apiKey', 'mode', 'authToken']);
-  const { apiKey, mode, authToken } = result;
-  
-  if (mode === 'login' && authToken) {
-    return await generateReplyViaBackend(authToken, review);
+
+  // 获取设置
+  const { apiKey, mode } = await chrome.storage.local.get(['apiKey', 'mode']);
+
+  if (mode === 'login') {
+    // 通过 Supabase Edge Function
+    const data = await supabase.generateReply(review);
+    return { reply: data.reply };
   } else if (apiKey) {
-    return await callDeepSeekAPI(apiKey, review);
+    // 直接调用 DeepSeek
+    return { reply: await callDeepSeek(apiKey, review) };
   } else {
     throw new Error('请先在设置中配置 API Key 或登录');
   }
 }
 
-// Generate reply via backend
-async function generateReplyViaBackend(token, review) {
-  const response = await fetch(`${API_BASE}/ai/generate`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      review: review,
-      tone: 'professional',
-      platform: 'google'
-    })
-  });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    if (response.status === 401) {
-      throw new Error('登录已过期，请重新登录');
-    }
-    if (response.status === 429) {
-      throw new Error('免费额度已用完，请升级或使用 API Key 模式');
-    }
-    throw new Error(error.message || '生成回复失败');
-  }
-  
-  const data = await response.json();
-  return { reply: data.data.reply };
-}
-
-// Call DeepSeek API directly
-async function callDeepSeekAPI(apiKey, review) {
+// 直接调用 DeepSeek API
+async function callDeepSeek(apiKey, review) {
   const prompt = `你是一个专业的商家回复助手。请根据以下顾客评论，生成一段专业、友好、有帮助的商家回复。
 
 回复要求：
@@ -84,27 +109,25 @@ ${review}
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
+      'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: 'deepseek-chat',
       messages: [
         { role: 'system', content: '你是专业的商家回复助手，帮助商家回复顾客评论。' },
-        { role: 'user', content: prompt }
+        { role: 'user', content: prompt },
       ],
       temperature: 0.7,
-      max_tokens: 500
-    })
+      max_tokens: 500,
+    }),
   });
-  
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    if (response.status === 401) {
-      throw new Error('API Key 无效，请在设置中检查');
-    }
+    if (response.status === 401) throw new Error('API Key 无效，请在设置中检查');
     throw new Error(error.error?.message || 'AI 服务请求失败');
   }
-  
+
   const data = await response.json();
-  return { reply: data.choices[0].message.content.trim() };
+  return data.choices[0].message.content.trim();
 }
