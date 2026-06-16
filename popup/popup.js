@@ -4,45 +4,92 @@ class ReviewReplyApp {
   constructor() {
     this.selectedTone = 'professional';
     this.selectedPlatform = 'google';
-    this.credits = 200;
+    this.user = null;
     this.init();
   }
 
-  init() {
-    this.loadState();
+  async init() {
+    await this.checkLoginState();
     this.bindEvents();
-    this.updateUI();
   }
 
-  // Load saved state from storage
-  async loadState() {
+  // Check if user is logged in
+  async checkLoginState() {
     try {
-      const result = await chrome.storage.local.get(['credits', 'selectedTone', 'selectedPlatform']);
-      if (result.credits !== undefined) this.credits = result.credits;
-      if (result.selectedTone) this.selectedTone = result.selectedTone;
-      if (result.selectedPlatform) this.selectedPlatform = result.selectedPlatform;
-      this.updateUI();
-    } catch (e) {
-      console.error('Failed to load state:', e);
+      const response = await chrome.runtime.sendMessage({ action: 'getUserInfo' });
+      
+      if (response && response.success && response.user) {
+        this.user = response.user;
+        this.showMainSection();
+      } else {
+        this.showLoginSection();
+      }
+    } catch (error) {
+      this.showLoginSection();
     }
   }
 
-  // Save state to storage
-  async saveState() {
-    try {
-      await chrome.storage.local.set({
-        credits: this.credits,
-        selectedTone: this.selectedTone,
-        selectedPlatform: this.selectedPlatform
-      });
-    } catch (e) {
-      console.error('Failed to save state:', e);
+  // Show login section
+  showLoginSection() {
+    document.getElementById('login-section').classList.remove('hidden');
+    document.getElementById('main-section').classList.add('hidden');
+    document.getElementById('user-badge').classList.add('hidden');
+  }
+
+  // Show main section
+  showMainSection() {
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('main-section').classList.remove('hidden');
+    document.getElementById('user-badge').classList.remove('hidden');
+    
+    this.updateUserUI();
+    this.updateToneButtons();
+    this.updatePlatformButtons();
+  }
+
+  // Update user UI
+  updateUserUI() {
+    if (!this.user) return;
+
+    // Update user info
+    const avatar = document.getElementById('user-avatar');
+    const userName = document.getElementById('user-name');
+    const userEmail = document.getElementById('user-email');
+    const planBadge = document.getElementById('plan-badge');
+    const creditsDisplay = document.getElementById('credits-display');
+    const upgradeBanner = document.getElementById('upgrade-banner');
+
+    avatar.src = this.user.avatar || '';
+    userName.textContent = this.user.name || 'User';
+    userEmail.textContent = this.user.email || '';
+    
+    // Update plan badge
+    const isPro = this.user.plan === 'pro';
+    planBadge.textContent = isPro ? 'PRO' : 'FREE';
+    planBadge.className = `plan-badge ${isPro ? 'pro' : 'free'}`;
+    
+    // Update credits
+    const remaining = this.user.creditsRemaining || 0;
+    const total = this.user.creditsTotal || 30;
+    creditsDisplay.textContent = `${remaining}/${total}`;
+    
+    // Show upgrade banner for free users
+    if (!isPro) {
+      upgradeBanner.classList.remove('hidden');
+    } else {
+      upgradeBanner.classList.add('hidden');
     }
   }
 
   // Bind all event listeners
   bindEvents() {
-    // Fetch review from page
+    // Google login
+    document.getElementById('google-login').addEventListener('click', () => this.handleGoogleLogin());
+
+    // Logout
+    document.getElementById('logout-btn').addEventListener('click', () => this.handleLogout());
+
+    // Fetch review
     document.getElementById('fetch-review').addEventListener('click', () => this.fetchReview());
 
     // Generate reply
@@ -54,7 +101,7 @@ class ReviewReplyApp {
     // Regenerate
     document.getElementById('regenerate').addEventListener('click', () => this.generateReply());
 
-    // Use reply (insert to page)
+    // Use reply
     document.getElementById('use-reply').addEventListener('click', () => this.insertReply());
 
     // Tone buttons
@@ -67,23 +114,101 @@ class ReviewReplyApp {
       btn.addEventListener('click', () => this.selectPlatform(btn));
     });
 
-    // Settings
-    document.getElementById('open-settings').addEventListener('click', (e) => {
+    // Upgrade button
+    document.getElementById('upgrade-btn').addEventListener('click', () => this.handleUpgrade());
+
+    // View history
+    document.getElementById('view-history').addEventListener('click', (e) => {
       e.preventDefault();
-      chrome.runtime.openOptionsPage();
+      chrome.tabs.create({ url: 'http://localhost:3000/history' });
+    });
+
+    // View stats
+    document.getElementById('view-stats').addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: 'http://localhost:3000/stats' });
     });
   }
 
-  // Update UI state
-  updateUI() {
-    document.getElementById('credit-count').textContent = this.credits;
+  // Handle Google login
+  async handleGoogleLogin() {
+    try {
+      this.showStatus('loading', 'Signing in...');
+      
+      const response = await chrome.runtime.sendMessage({ action: 'googleLogin' });
+      
+      if (response && response.success) {
+        this.user = response.user;
+        this.showMainSection();
+        this.showStatus('success', 'Signed in successfully!');
+        setTimeout(() => this.hideStatus(), 2000);
+      } else {
+        throw new Error(response?.error || 'Login failed');
+      }
+    } catch (error) {
+      this.showStatus('error', error.message || 'Login failed');
+      setTimeout(() => this.hideStatus(), 3000);
+    }
+  }
 
-    // Update tone buttons
+  // Handle logout
+  async handleLogout() {
+    try {
+      await chrome.runtime.sendMessage({ action: 'logout' });
+      this.user = null;
+      this.showLoginSection();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  }
+
+  // Handle upgrade
+  async handleUpgrade() {
+    try {
+      const { authToken } = await chrome.storage.local.get('authToken');
+      
+      const response = await fetch('http://localhost:3000/api/stripe/create-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (data.success && data.data.url) {
+        chrome.tabs.create({ url: data.data.url });
+      } else {
+        throw new Error(data.message || 'Failed to create checkout');
+      }
+    } catch (error) {
+      this.showStatus('error', error.message || 'Failed to start checkout');
+      setTimeout(() => this.hideStatus(), 3000);
+    }
+  }
+
+  // Select tone
+  selectTone(btn) {
+    this.selectedTone = btn.dataset.tone;
+    this.updateToneButtons();
+  }
+
+  // Update tone buttons
+  updateToneButtons() {
     document.querySelectorAll('.tone-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tone === this.selectedTone);
     });
+  }
 
-    // Update platform buttons
+  // Select platform
+  selectPlatform(btn) {
+    this.selectedPlatform = btn.dataset.platform;
+    this.updatePlatformButtons();
+  }
+
+  // Update platform buttons
+  updatePlatformButtons() {
     document.querySelectorAll('.platform-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.platform === this.selectedPlatform);
     });
@@ -102,20 +227,6 @@ class ReviewReplyApp {
     document.getElementById('status').classList.add('hidden');
   }
 
-  // Select tone
-  selectTone(btn) {
-    this.selectedTone = btn.dataset.tone;
-    this.saveState();
-    this.updateUI();
-  }
-
-  // Select platform
-  selectPlatform(btn) {
-    this.selectedPlatform = btn.dataset.platform;
-    this.saveState();
-    this.updateUI();
-  }
-
   // Fetch review from current page
   async fetchReview() {
     try {
@@ -127,10 +238,10 @@ class ReviewReplyApp {
       
       if (response && response.review) {
         document.getElementById('review-text').value = response.review;
-        this.showStatus('success', 'Review captured successfully!');
+        this.showStatus('success', 'Review captured!');
         setTimeout(() => this.hideStatus(), 2000);
       } else {
-        this.showStatus('error', 'No review found. Please navigate to a review page.');
+        this.showStatus('error', 'No review found on this page.');
         setTimeout(() => this.hideStatus(), 3000);
       }
     } catch (e) {
@@ -149,18 +260,11 @@ class ReviewReplyApp {
       return;
     }
 
-    if (this.credits <= 0) {
-      this.showStatus('error', 'No credits remaining. Please upgrade your plan.');
-      setTimeout(() => this.hideStatus(), 3000);
-      return;
-    }
-
     try {
-      // Show loading
       const generateBtn = document.getElementById('generate');
       generateBtn.disabled = true;
       generateBtn.innerHTML = `
-        <svg class="spin" width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
           <path d="M23 4v6h-6M1 20v-6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -168,7 +272,6 @@ class ReviewReplyApp {
       `;
       this.showStatus('loading', 'AI is crafting your reply...');
 
-      // Call background script to generate reply
       const response = await chrome.runtime.sendMessage({
         action: 'generateReply',
         review: reviewText,
@@ -176,29 +279,29 @@ class ReviewReplyApp {
         platform: this.selectedPlatform
       });
 
-      if (response && response.reply) {
-        // Show result
+      if (response && response.success) {
         document.getElementById('reply-text').textContent = response.reply;
         document.getElementById('result').classList.remove('hidden');
         
-        // Decrease credits
-        this.credits--;
-        this.saveState();
-        this.updateUI();
+        // Update credits
+        if (response.creditsRemaining !== undefined && this.user) {
+          this.user.creditsRemaining = response.creditsRemaining;
+          this.updateUserUI();
+        }
         
-        this.showStatus('success', 'Reply generated successfully!');
+        this.showStatus('success', 'Reply generated!');
         setTimeout(() => this.hideStatus(), 2000);
       } else {
-        throw new Error(response.error || 'Failed to generate reply');
+        throw new Error(response?.error || 'Failed to generate reply');
       }
     } catch (e) {
-      this.showStatus('error', e.message || 'Failed to generate reply. Please try again.');
+      this.showStatus('error', e.message || 'Failed to generate reply');
       setTimeout(() => this.hideStatus(), 3000);
     } finally {
       const generateBtn = document.getElementById('generate');
       generateBtn.disabled = false;
       generateBtn.innerHTML = `
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         Generate AI Reply
@@ -212,10 +315,10 @@ class ReviewReplyApp {
     
     try {
       await navigator.clipboard.writeText(replyText);
-      this.showStatus('success', 'Copied to clipboard!');
+      this.showStatus('success', 'Copied!');
       setTimeout(() => this.hideStatus(), 2000);
     } catch (e) {
-      this.showStatus('error', 'Failed to copy. Please select and copy manually.');
+      this.showStatus('error', 'Failed to copy');
       setTimeout(() => this.hideStatus(), 3000);
     }
   }
@@ -232,7 +335,7 @@ class ReviewReplyApp {
         reply: replyText
       });
       
-      this.showStatus('success', 'Reply inserted to page!');
+      this.showStatus('success', 'Reply inserted!');
       setTimeout(() => this.hideStatus(), 2000);
     } catch (e) {
       this.showStatus('error', 'Failed to insert. Please copy and paste manually.');

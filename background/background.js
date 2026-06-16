@@ -1,21 +1,6 @@
 // AI Review Reply - Background Service Worker
 
-const API_ENDPOINT = 'https://api.deepseek.com/v1/chat/completions';
-const DEFAULT_API_KEY = ''; // Users will set their own key
-
-// Tone configurations
-const TONE_PROMPTS = {
-  professional: 'Write a professional and business-like reply. Be courteous, formal, and solution-oriented.',
-  friendly: 'Write a warm and friendly reply. Be approachable, positive, and conversational.',
-  apologetic: 'Write an apologetic and understanding reply. Acknowledge the issue, show empathy, and offer solutions.',
-  grateful: 'Write a grateful and appreciative reply. Thank the customer sincerely and express genuine appreciation.'
-};
-
-// Platform-specific instructions
-const PLATFORM_PROMPTS = {
-  google: 'Format for Google Business reply. Keep it concise (under 300 words), professional, and mention the business name if available.',
-  yelp: 'Format for Yelp business reply. Be personable, address specific points from the review, and maintain a helpful tone.'
-};
+const API_BASE = 'http://localhost:3000/api';
 
 // Listen for messages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -23,89 +8,150 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     handleGenerateReply(request)
       .then(sendResponse)
       .catch(error => sendResponse({ error: error.message }));
-    return true; // Keep the message channel open for async response
+    return true;
   }
   
   if (request.action === 'openPopup') {
     chrome.action.openPopup();
   }
-});
 
-// Generate reply using AI
-async function handleGenerateReply({ review, tone, platform }) {
-  // Get API key from storage
-  const { apiKey } = await chrome.storage.local.get('apiKey');
-  
-  if (!apiKey) {
-    throw new Error('Please set your API key in the extension settings.');
+  if (request.action === 'googleLogin') {
+    handleGoogleLogin()
+      .then(sendResponse)
+      .catch(error => sendResponse({ error: error.message }));
+    return true;
   }
 
-  // Build prompt
-  const tonePrompt = TONE_PROMPTS[tone] || TONE_PROMPTS.professional;
-  const platformPrompt = PLATFORM_PROMPTS[platform] || PLATFORM_PROMPTS.google;
+  if (request.action === 'logout') {
+    handleLogout().then(sendResponse);
+    return true;
+  }
 
-  const systemPrompt = `You are an AI assistant helping businesses reply to customer reviews. 
-Your task is to generate a professional, helpful reply to the given review.
+  if (request.action === 'getUserInfo') {
+    handleGetUserInfo()
+      .then(sendResponse)
+      .catch(error => sendResponse({ error: error.message }));
+    return true;
+  }
+});
 
-Guidelines:
-${tonePrompt}
-${platformPrompt}
-- Address specific points mentioned in the review
-- Be authentic and genuine
-- Keep the reply appropriate for the platform
-- Do not use placeholder text like [Business Name]
-- Return ONLY the reply text, no explanations`;
-
-  const userPrompt = `Please generate a reply to this customer review:
-
-"${review}"
-
-Generate a reply that addresses the customer's feedback appropriately.`;
-
+// Google OAuth login
+async function handleGoogleLogin() {
   try {
-    const response = await fetch(API_ENDPOINT, {
+    // Get Google OAuth token
+    const token = await chrome.identity.getAuthToken({ interactive: true });
+    
+    if (!token) {
+      throw new Error('Failed to get Google token');
+    }
+
+    // Send to our backend
+    const response = await fetch(`${API_BASE}/auth/google`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: token })
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error?.message || 'API request failed');
+      throw new Error(error.message || 'Login failed');
     }
 
     const data = await response.json();
-    const reply = data.choices[0]?.message?.content?.trim();
+    
+    // Save to storage
+    await chrome.storage.local.set({
+      authToken: data.data.token,
+      user: data.data.user
+    });
 
-    if (!reply) {
-      throw new Error('No reply generated');
-    }
-
-    return { reply };
+    return { success: true, user: data.data.user };
   } catch (error) {
-    console.error('AI generation error:', error);
+    console.error('Login error:', error);
     throw error;
   }
+}
+
+// Logout
+async function handleLogout() {
+  await chrome.storage.local.remove(['authToken', 'user']);
+  return { success: true };
+}
+
+// Get user info from storage
+async function handleGetUserInfo() {
+  const { authToken, user } = await chrome.storage.local.get(['authToken', 'user']);
+  
+  if (!authToken || !user) {
+    return { success: false, message: 'Not logged in' };
+  }
+
+  // Verify token is still valid
+  try {
+    const response = await fetch(`${API_BASE}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+
+    if (!response.ok) {
+      // Token expired, clear storage
+      await chrome.storage.local.remove(['authToken', 'user']);
+      return { success: false, message: 'Session expired' };
+    }
+
+    const data = await response.json();
+    return { success: true, user: data.data };
+  } catch (error) {
+    return { success: true, user }; // Return cached user if offline
+  }
+}
+
+// Generate AI reply
+async function handleGenerateReply({ review, tone, platform }) {
+  const { authToken } = await chrome.storage.local.get('authToken');
+  
+  if (!authToken) {
+    throw new Error('Please login first');
+  }
+
+  const response = await fetch(`${API_BASE}/ai/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`
+    },
+    body: JSON.stringify({ review, tone, platform })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    
+    if (error.code === 'NO_CREDITS') {
+      throw new Error('No credits remaining. Please upgrade to Pro.');
+    }
+    
+    throw new Error(error.message || 'Failed to generate reply');
+  }
+
+  const data = await response.json();
+  
+  // Update cached credits
+  const { user } = await chrome.storage.local.get('user');
+  if (user) {
+    user.creditsRemaining = data.data.creditsRemaining;
+    await chrome.storage.local.set({ user });
+  }
+
+  return { 
+    success: true, 
+    reply: data.data.reply,
+    creditsRemaining: data.data.creditsRemaining
+  };
 }
 
 // Install handler
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
-    // Set default credits
-    chrome.storage.local.set({ credits: 200 });
-    
-    // Open options page
-    chrome.runtime.openOptionsPage();
+    // Open popup on install
+    chrome.action.openPopup();
   }
 });

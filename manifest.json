@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Review Reply - Smart Comment Responder",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AI-powered tool to generate professional replies for Google Maps & Yelp reviews. Save time and improve customer engagement.",
   "permissions": [
     "activeTab",
@@ -11,7 +11,8 @@
   "host_permissions": [
     "https://business.google.com/*",
     "https://www.yelp.com/*",
-    "https://maps.google.com/*"
+    "https://maps.google.com/*",
+    "http://localhost:3000/*"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -39,5 +40,14 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  }
+  },
+  "oauth2": {
+    "client_id": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": [
+      "openid",
+      "email",
+      "profile"
+    ]
+  },
+  "key": "YOUR_EXTENSION_PUBLIC_KEY"
 }
