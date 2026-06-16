@@ -15,7 +15,8 @@ const TONE_PROMPTS = {
 // Platform-specific instructions
 const PLATFORM_PROMPTS = {
   google: 'Format for Google Business reply. Keep it concise (under 300 words), professional, and mention the business name if available.',
-  yelp: 'Format for Yelp business reply. Be personable, address specific points from the review, and maintain a helpful tone.'
+  yelp: 'Format for Yelp business reply. Be personable, address specific points from the review, and maintain a helpful tone.',
+  wechat: 'Format for WeChat Official Account reply. Use polite and professional Chinese. Keep the reply concise and helpful. Address the user\'s specific concerns or questions.'
 };
 
 // Generate AI reply

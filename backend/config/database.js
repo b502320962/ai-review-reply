@@ -86,6 +86,7 @@ const platformConfigCount = db.prepare('SELECT COUNT(*) as count FROM platform_c
 if (platformConfigCount.count === 0) {
   db.prepare('INSERT INTO platform_configs (platform, enabled, settings) VALUES (?, ?, ?)').run('google', 1, '{}');
   db.prepare('INSERT INTO platform_configs (platform, enabled, settings) VALUES (?, ?, ?)').run('yelp', 1, '{}');
+  db.prepare('INSERT INTO platform_configs (platform, enabled, settings) VALUES (?, ?, ?)').run('wechat', 1, '{}');
 }
 
 module.exports = db;

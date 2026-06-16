@@ -1,3 +1,380 @@
 /* AI Review Reply - Content Script Styles */
 
 /* Floating button styles are injected via JavaScript */
+
+/* WeChat AI Reply Button */
+.ai-reply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  margin: 4px 0;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.ai-reply-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.ai-reply-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ai-reply-btn svg {
+  flex-shrink: 0;
+}
+
+/* Spin animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* AI Reply Dialog */
+.ai-reply-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.ai-reply-dialog-content {
+  background: white;
+  border-radius: 12px;
+  width: 480px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: dialogFadeIn 0.2s ease-out;
+}
+
+@keyframes dialogFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ai-reply-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.ai-reply-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.ai-reply-dialog-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.ai-reply-dialog-close:hover {
+  color: #1f2937;
+}
+
+.ai-reply-dialog-body {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+/* Message Cards */
+.ai-reply-card {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.ai-reply-card:last-child {
+  margin-bottom: 0;
+}
+
+.ai-reply-card-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-reply-credits {
+  font-size: 11px;
+  font-weight: 400;
+  color: #9ca3af;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.ai-reply-card-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1f2937;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-reply-generated {
+  background: #f0f0ff;
+  border-color: #c7d2fe;
+}
+
+.ai-reply-generated .ai-reply-card-label {
+  color: #4f46e5;
+}
+
+/* Dialog Footer */
+.ai-reply-dialog-footer {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.ai-reply-btn-primary,
+.ai-reply-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.ai-reply-btn-primary {
+  background: #6366f1;
+  color: white;
+  flex: 1;
+}
+
+.ai-reply-btn-primary:hover {
+  background: #4f46e5;
+}
+
+.ai-reply-btn-secondary {
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.ai-reply-btn-secondary:hover {
+  background: #f3f4f6;
+}
+
+.ai-reply-btn-use {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.ai-reply-btn-use:hover {
+  opacity: 0.9;
+}
+
+/* Review Panel Styles (similar to the image) */
+.review-panel {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.review-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.review-panel-tabs {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.review-panel-tab {
+  padding: 4px 0;
+  font-size: 14px;
+  color: #6b7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.review-panel-tab.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+  font-weight: 500;
+}
+
+.review-panel-tab:hover {
+  color: #3b82f6;
+}
+
+/* Review Item */
+.review-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+}
+
+.review-item:hover {
+  border-color: #c7d2fe;
+  background: #fafafe;
+}
+
+.review-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.review-avatar-icon {
+  font-size: 20px;
+}
+
+.review-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.review-user {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.review-meta {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.review-stars {
+  display: flex;
+  gap: 2px;
+  margin: 4px 0;
+}
+
+.review-star {
+  color: #f59e0b;
+  font-size: 14px;
+}
+
+.review-star.empty {
+  color: #d1d5db;
+}
+
+.review-text {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.review-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Warning Banner */
+.warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #92400e;
+}
+
+.warning-banner-icon {
+  font-size: 16px;
+}
+
+.warning-banner-links {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+}
+
+.warning-banner-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.warning-banner-link:hover {
+  text-decoration: underline;
+}
